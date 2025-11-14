@@ -64,14 +64,14 @@ const Dashboard = () => {
       icon: FileText,
       title: "Previous Analyses",
       description: "View your past resume analyses",
-      action: () => {},
+      action: () => navigate("/profile"),
       gradient: "from-secondary to-accent",
     },
     {
       icon: BarChart,
       title: "Total Resumes",
       description: "0 resumes uploaded",
-      action: () => {},
+      action: () => navigate("/profile"),
       gradient: "from-accent to-primary",
     },
     {
@@ -85,14 +85,14 @@ const Dashboard = () => {
       icon: Users,
       title: "Profile Info",
       description: "Manage your account details",
-      action: () => {},
+      action: () => navigate("/profile"),
       gradient: "from-secondary to-primary",
     },
     {
       icon: Settings,
       title: "Settings",
       description: "Configure your preferences",
-      action: () => {},
+      action: () => navigate("/settings"),
       gradient: "from-accent to-secondary",
     },
   ];
