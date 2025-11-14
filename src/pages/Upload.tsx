@@ -1,15 +1,29 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload as UploadIcon, FileText, X } from "lucide-react";
+import { Upload as UploadIcon, FileText, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 const Upload = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+    });
+  }, [navigate]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -55,12 +69,61 @@ const Upload = () => {
     toast.info("File removed");
   };
 
-  const handleAnalyze = () => {
-    if (!file) {
+  const handleAnalyze = async () => {
+    if (!file || !user) {
       toast.error("Please upload a file first");
       return;
     }
-    toast.info("Analysis feature coming soon!");
+
+    setIsAnalyzing(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('resumes')
+        .upload(fileName, file);
+
+      if (uploadError) throw new Error("Failed to upload file");
+
+      const { data: resumeData, error: resumeError } = await supabase
+        .from('resumes')
+        .insert({
+          user_id: user.id,
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type,
+          storage_path: fileName
+        })
+        .select()
+        .single();
+
+      if (resumeError) throw new Error("Failed to save resume");
+
+      const resumeText = `Resume: ${file.name}`;
+
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-resume', {
+        body: { resumeText, fileName: file.name }
+      });
+
+      if (analysisError || !analysisData.success) {
+        throw new Error(analysisData?.error || "Analysis failed");
+      }
+
+      await supabase.from('resume_analyses').insert({
+        resume_id: resumeData.id,
+        user_id: user.id,
+        ...analysisData.analysis
+      });
+
+      toast.success("Analysis complete!");
+      navigate(`/results/${resumeData.id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to analyze");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -85,9 +148,7 @@ const Upload = () => {
               onDragOver={handleDrag}
               onDrop={handleDrop}
               className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
-                isDragging
-                  ? "border-primary bg-primary/10 scale-105"
-                  : "border-border hover:border-primary/50"
+                isDragging ? "border-primary bg-primary/10 scale-105" : "border-border hover:border-primary/50"
               }`}
             >
               {!file ? (
@@ -95,53 +156,25 @@ const Upload = () => {
                   <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-6 animate-float">
                     <UploadIcon className="h-12 w-12 text-white" />
                   </div>
-                  
-                  <h3 className="text-2xl font-semibold mb-2">
-                    Drop your resume here
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    or click to browse your files
-                  </p>
-                  
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileInput}
-                  />
+                  <h3 className="text-2xl font-semibold mb-2">Drop your resume here</h3>
+                  <p className="text-muted-foreground mb-6">or click to browse</p>
+                  <input type="file" id="file-upload" className="hidden" accept=".pdf,.doc,.docx" onChange={handleFileInput} />
                   <label htmlFor="file-upload">
-                    <Button
-                      type="button"
-                      onClick={() => document.getElementById("file-upload")?.click()}
-                      className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                    >
+                    <Button type="button" onClick={() => document.getElementById("file-upload")?.click()} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
                       Browse Files
                     </Button>
                   </label>
-                  
-                  <p className="text-sm text-muted-foreground mt-4">
-                    Supports PDF, DOC, DOCX (Max 10MB)
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-4">Supports PDF, DOC, DOCX (Max 10MB)</p>
                 </>
               ) : (
                 <div className="animate-scale-in">
                   <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-accent to-primary flex items-center justify-center mx-auto mb-4">
                     <FileText className="h-10 w-10 text-white" />
                   </div>
-                  
                   <h3 className="text-xl font-semibold mb-2">{file.name}</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={removeFile}
-                    className="gap-2"
-                  >
-                    <X className="h-4 w-4" />
-                    Remove File
+                  <p className="text-muted-foreground mb-4">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <Button variant="outline" onClick={removeFile} className="gap-2" disabled={isAnalyzing}>
+                    <X className="h-4 w-4" />Remove File
                   </Button>
                 </div>
               )}
@@ -149,38 +182,13 @@ const Upload = () => {
 
             {file && (
               <div className="mt-8 flex gap-4">
-                <Button
-                  onClick={handleAnalyze}
-                  className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-lg py-6"
-                >
-                  Analyze Resume
+                <Button onClick={handleAnalyze} disabled={isAnalyzing} className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-lg py-6">
+                  {isAnalyzing ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Analyzing...</> : "Analyze Resume"}
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate("/dashboard")}
-                  className="glass-card"
-                >
-                  Cancel
-                </Button>
+                <Button variant="outline" onClick={() => navigate("/dashboard")} className="glass-card" disabled={isAnalyzing}>Cancel</Button>
               </div>
             )}
           </Card>
-
-          {/* Info Cards */}
-          <div className="grid md:grid-cols-3 gap-4 mt-8">
-            <Card className="glass-card p-4 text-center">
-              <p className="text-3xl font-bold text-primary mb-1">&lt; 30s</p>
-              <p className="text-sm text-muted-foreground">Analysis Time</p>
-            </Card>
-            <Card className="glass-card p-4 text-center">
-              <p className="text-3xl font-bold text-secondary mb-1">AI</p>
-              <p className="text-sm text-muted-foreground">Powered Analysis</p>
-            </Card>
-            <Card className="glass-card p-4 text-center">
-              <p className="text-3xl font-bold text-accent mb-1">100%</p>
-              <p className="text-sm text-muted-foreground">Secure & Private</p>
-            </Card>
-          </div>
         </div>
       </div>
     </div>
