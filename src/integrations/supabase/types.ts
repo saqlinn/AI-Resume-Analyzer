@@ -14,7 +14,131 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      resume_analyses: {
+        Row: {
+          analysis_data: Json | null
+          ats_score: number | null
+          category: string | null
+          certifications: string[] | null
+          created_at: string | null
+          id: string
+          improvement_areas: string[] | null
+          keyword_score: number | null
+          missing_skills: string[] | null
+          resume_id: string
+          role_relevancy_score: number | null
+          soft_skills: string[] | null
+          strong_skills: string[] | null
+          technical_skills: string[] | null
+          tools_technologies: string[] | null
+          user_id: string
+        }
+        Insert: {
+          analysis_data?: Json | null
+          ats_score?: number | null
+          category?: string | null
+          certifications?: string[] | null
+          created_at?: string | null
+          id?: string
+          improvement_areas?: string[] | null
+          keyword_score?: number | null
+          missing_skills?: string[] | null
+          resume_id: string
+          role_relevancy_score?: number | null
+          soft_skills?: string[] | null
+          strong_skills?: string[] | null
+          technical_skills?: string[] | null
+          tools_technologies?: string[] | null
+          user_id: string
+        }
+        Update: {
+          analysis_data?: Json | null
+          ats_score?: number | null
+          category?: string | null
+          certifications?: string[] | null
+          created_at?: string | null
+          id?: string
+          improvement_areas?: string[] | null
+          keyword_score?: number | null
+          missing_skills?: string[] | null
+          resume_id?: string
+          role_relevancy_score?: number | null
+          soft_skills?: string[] | null
+          strong_skills?: string[] | null
+          technical_skills?: string[] | null
+          tools_technologies?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resume_analyses_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resumes: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          storage_path: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          storage_path: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          storage_path?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
