@@ -19,16 +19,47 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalResumes: 0,
+    avgAtsScore: 0,
+    resumesAnalyzed: 0,
+  });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const fetchUserData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate("/auth");
         return;
       }
       setUser(session.user);
+
+      // Fetch user's resumes count
+      const { count: resumeCount } = await supabase
+        .from('resumes')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id);
+
+      // Fetch user's analyses and calculate avg ATS score
+      const { data: analyses, count: analysesCount } = await supabase
+        .from('resume_analyses')
+        .select('ats_score', { count: 'exact' })
+        .eq('user_id', session.user.id);
+
+      const avgScore = analyses && analyses.length > 0
+        ? Math.round(analyses.reduce((sum, a) => sum + (a.ats_score || 0), 0) / analyses.length)
+        : 0;
+
+      setStats({
+        totalResumes: resumeCount || 0,
+        avgAtsScore: avgScore,
+        resumesAnalyzed: analysesCount || 0,
+      });
+      
       setLoading(false);
-    });
+    };
+
+    fetchUserData();
 
     const {
       data: { subscription },
@@ -38,7 +69,7 @@ const Dashboard = () => {
         return;
       }
       setUser(session.user);
-      setLoading(false);
+      fetchUserData();
     });
 
     return () => subscription.unsubscribe();
@@ -70,7 +101,7 @@ const Dashboard = () => {
     {
       icon: BarChart,
       title: "Total Resumes",
-      description: "0 resumes uploaded",
+      description: `${stats.totalResumes} resumes uploaded`,
       action: () => navigate("/profile"),
       gradient: "from-accent to-primary",
     },
@@ -138,7 +169,7 @@ const Dashboard = () => {
                 <TrendingUp className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{stats.avgAtsScore}</p>
                 <p className="text-sm text-muted-foreground">Avg ATS Score</p>
               </div>
             </div>
@@ -150,7 +181,7 @@ const Dashboard = () => {
                 <FileText className="h-6 w-6 text-secondary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{stats.resumesAnalyzed}</p>
                 <p className="text-sm text-muted-foreground">Resumes Analyzed</p>
               </div>
             </div>
