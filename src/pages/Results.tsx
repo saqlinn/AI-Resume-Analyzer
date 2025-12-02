@@ -168,13 +168,18 @@ const Results = () => {
                 <CheckCircle className="h-5 w-5 text-green-500" />
                 Strong Skills
               </h3>
-              <div className="flex flex-wrap gap-2">
-                {analysis.strong_skills.map((skill, idx) => (
-                  <Badge key={idx} variant="outline" className="bg-green-500/10 border-green-500/30">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
+              {analysis.strong_skills.length > 0 ? (
+                <ul className="space-y-2">
+                  {analysis.strong_skills.map((skill, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-green-500 mt-1">•</span>
+                      <span className="text-sm">{skill}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No strong skills identified</p>
+              )}
             </Card>
 
             <Card className="glass-card card-3d p-6">

@@ -62,19 +62,19 @@ serve(async (req) => {
     console.log("Backend response received:", JSON.stringify(backendData).substring(0, 200));
 
     // Map backend response to our expected format
-    // Adjust this mapping based on your actual backend response structure
+    const presentSkills = backendData.skills?.present || [];
     const analysis = {
-      category: backendData.category || backendData.role || "Not specified",
-      ats_score: backendData.ats_score || backendData.atsScore || 0,
-      keyword_score: backendData.keyword_score || backendData.keywordScore || 0,
-      role_relevancy_score: backendData.role_relevancy_score || backendData.roleRelevancy || 0,
-      technical_skills: backendData.technical_skills || backendData.technicalSkills || [],
-      soft_skills: backendData.soft_skills || backendData.softSkills || [],
-      tools_technologies: backendData.tools_technologies || backendData.tools || [],
+      category: backendData.category || "Not specified",
+      ats_score: backendData.ats_score || 0,
+      keyword_score: backendData.match_score || backendData.keyword_score || 0,
+      role_relevancy_score: backendData.match_score || backendData.role_relevancy_score || 0,
+      technical_skills: presentSkills,
+      soft_skills: backendData.soft_skills || [],
+      tools_technologies: backendData.tools_technologies || [],
       certifications: backendData.certifications || [],
-      missing_skills: backendData.missing_skills || backendData.missingSkills || [],
-      improvement_areas: backendData.improvement_areas || backendData.improvements || [],
-      strong_skills: backendData.strong_skills || backendData.strengths || [],
+      missing_skills: backendData.missing_skills || [],
+      improvement_areas: backendData.improvement_areas || [],
+      strong_skills: presentSkills,
       recommendations: backendData.recommendations || []
     };
 
