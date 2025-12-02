@@ -22,6 +22,10 @@ interface AnalysisData {
   missing_skills: string[];
   improvement_areas: string[];
   strong_skills: string[];
+  analysis_data?: {
+    recommendations?: string[];
+    rawResponse?: any;
+  };
 }
 
 const Results = () => {
@@ -55,7 +59,11 @@ const Results = () => {
         return;
       }
 
-      setAnalysis(data);
+      // Cast analysis_data from Json to our expected type
+      setAnalysis({
+        ...data,
+        analysis_data: data.analysis_data as { recommendations?: string[]; rawResponse?: any } | undefined
+      });
       setLoading(false);
     };
 
@@ -239,13 +247,33 @@ const Results = () => {
 
           {/* Certifications */}
           {analysis.certifications.length > 0 && (
-            <Card className="glass-card p-6">
+            <Card className="glass-card p-6 mb-8">
               <h3 className="text-xl font-semibold mb-4">Certifications</h3>
               <div className="flex flex-wrap gap-2">
                 {analysis.certifications.map((cert, idx) => (
                   <Badge key={idx} variant="secondary" className="text-sm px-3 py-1">
                     {cert}
                   </Badge>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Recommendations */}
+          {analysis.analysis_data?.recommendations && analysis.analysis_data.recommendations.length > 0 && (
+            <Card className="glass-card card-3d p-6">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Recommendations
+              </h3>
+              <div className="space-y-3">
+                {analysis.analysis_data.recommendations.map((rec, idx) => (
+                  <div key={idx} className="flex items-start gap-3">
+                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-primary">{idx + 1}</span>
+                    </div>
+                    <p className="text-muted-foreground">{rec}</p>
+                  </div>
                 ))}
               </div>
             </Card>

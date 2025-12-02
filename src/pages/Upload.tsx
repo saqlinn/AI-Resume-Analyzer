@@ -101,20 +101,33 @@ const Upload = () => {
 
       if (resumeError) throw new Error("Failed to save resume");
 
-      const resumeText = `Resume: ${file.name}`;
+      // Convert file to base64 for edge function
+      const fileBuffer = await file.arrayBuffer();
+      const base64File = btoa(
+        new Uint8Array(fileBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      const fileData = `data:${file.type};base64,${base64File}`;
 
       const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-resume', {
-        body: { resumeText, fileName: file.name }
+        body: { fileData, fileName: file.name }
       });
 
       if (analysisError || !analysisData.success) {
+        console.error('Analysis error:', analysisError || analysisData);
         throw new Error(analysisData?.error || "Analysis failed");
       }
 
+      // Store recommendations in analysis_data jsonb field since it doesn't have a dedicated column
+      const { recommendations, ...analysisFields } = analysisData.analysis;
+      
       await supabase.from('resume_analyses').insert({
         resume_id: resumeData.id,
         user_id: user.id,
-        ...analysisData.analysis
+        ...analysisFields,
+        analysis_data: { 
+          recommendations,
+          rawResponse: analysisData.rawResponse 
+        }
       });
 
       toast.success("Analysis complete!");
