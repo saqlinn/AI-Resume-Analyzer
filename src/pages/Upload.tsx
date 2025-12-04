@@ -108,12 +108,35 @@ const Upload = () => {
       );
       const fileData = `data:${file.type};base64,${base64File}`;
 
-      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-resume', {
-        body: { fileData, fileName: file.name }
+      // Use fetch with longer timeout (5 minutes) for slow backend
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ fileData, fileName: file.name }),
+        signal: controller.signal,
       });
 
-      if (analysisError || !analysisData.success) {
-        console.error('Analysis error:', analysisError || analysisData);
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Analysis response error:', errorText);
+        throw new Error("Analysis request failed");
+      }
+
+      const analysisData = await response.json();
+
+      if (!analysisData.success) {
+        console.error('Analysis error:', analysisData);
         throw new Error(analysisData?.error || "Analysis failed");
       }
 
