@@ -59,23 +59,76 @@ serve(async (req) => {
     }
 
     const backendData = await backendResponse.json();
-    console.log("Backend response received:", JSON.stringify(backendData).substring(0, 200));
+    console.log("Full backend response:", JSON.stringify(backendData));
 
-    // Map backend response to our expected format
+    // Extract all available data from backend response
     const presentSkills = backendData.skills?.present || [];
+    const missingSkills = backendData.missing_skills || [];
+    const bestJob = backendData.best_job || {};
+    const explanations = backendData.explanations || {};
+    
+    // Build improvement areas from backend data
+    const improvementAreas: string[] = [];
+    
+    // Add why_missing explanation if available
+    if (explanations.why_missing) {
+      improvementAreas.push(explanations.why_missing);
+    }
+    
+    // Add specific skill recommendations
+    if (missingSkills.length > 0) {
+      improvementAreas.push(`Consider adding these key skills: ${missingSkills.slice(0, 5).join(', ')}`);
+    }
+    
+    // Add job-specific recommendations
+    if (bestJob.required_skills && bestJob.required_skills.length > 0) {
+      const matchingSkills = bestJob.required_skills.filter((s: string) => presentSkills.includes(s));
+      const missingFromRole = bestJob.required_skills.filter((s: string) => !presentSkills.includes(s));
+      
+      if (missingFromRole.length > 0) {
+        improvementAreas.push(`For ${bestJob.job_title} role, add: ${missingFromRole.join(', ')}`);
+      }
+    }
+    
+    // Build recommendations based on ATS score
+    const recommendations: string[] = [];
+    const atsScore = backendData.ats_score || 0;
+    
+    if (atsScore < 50) {
+      recommendations.push("Your resume needs significant improvements to pass ATS systems");
+      recommendations.push("Focus on adding more relevant keywords from job descriptions");
+      recommendations.push("Ensure your skills section is comprehensive and matches your target role");
+    } else if (atsScore < 70) {
+      recommendations.push("Your resume is moderately optimized but could be improved");
+      recommendations.push("Add more industry-specific keywords and technical terms");
+    } else {
+      recommendations.push("Your resume has good ATS compatibility");
+      recommendations.push("Consider tailoring keywords for specific job applications");
+    }
+    
+    if (presentSkills.length < 5) {
+      recommendations.push("Add more skills to your resume - aim for at least 8-10 relevant skills");
+    }
+    
+    // Map backend response to our expected format
     const analysis = {
       category: backendData.category || "Not specified",
-      ats_score: backendData.ats_score || 0,
-      keyword_score: backendData.match_score || backendData.keyword_score || 0,
-      role_relevancy_score: backendData.match_score || backendData.role_relevancy_score || 0,
+      ats_score: atsScore,
+      keyword_score: backendData.match_score || 0,
+      role_relevancy_score: backendData.match_score || 0,
       technical_skills: presentSkills,
-      soft_skills: backendData.soft_skills || [],
-      tools_technologies: backendData.tools_technologies || [],
-      certifications: backendData.certifications || [],
-      missing_skills: backendData.missing_skills || [],
-      improvement_areas: backendData.improvement_areas || [],
+      soft_skills: [], // Backend doesn't provide this
+      tools_technologies: [], // Backend doesn't provide this
+      certifications: [], // Backend doesn't provide this
+      missing_skills: missingSkills,
+      improvement_areas: improvementAreas,
       strong_skills: presentSkills,
-      recommendations: backendData.recommendations || []
+      recommendations: recommendations,
+      // Additional data for detailed display
+      best_job: bestJob,
+      explanations: explanations,
+      top_keywords: explanations.top_keywords || presentSkills,
+      required_skills_for_role: bestJob.required_skills || []
     };
 
     return new Response(
