@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Download, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { ScoreCards } from "@/components/results/ScoreCards";
+import { SkillsSection } from "@/components/results/SkillsSection";
+import { ImprovementSuggestions } from "@/components/results/ImprovementSuggestions";
+import { CategoryMatch } from "@/components/results/CategoryMatch";
 
 interface AnalysisData {
   id: string;
@@ -59,9 +60,15 @@ const Results = () => {
         return;
       }
 
-      // Cast analysis_data from Json to our expected type
       setAnalysis({
         ...data,
+        technical_skills: data.technical_skills || [],
+        soft_skills: data.soft_skills || [],
+        tools_technologies: data.tools_technologies || [],
+        certifications: data.certifications || [],
+        missing_skills: data.missing_skills || [],
+        improvement_areas: data.improvement_areas || [],
+        strong_skills: data.strong_skills || [],
         analysis_data: data.analysis_data as { recommendations?: string[]; rawResponse?: any } | undefined
       });
       setLoading(false);
@@ -80,18 +87,13 @@ const Results = () => {
 
   if (!analysis) return null;
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-green-500";
-    if (score >= 60) return "text-yellow-500";
-    return "text-red-500";
-  };
-
   return (
     <div className="min-h-screen">
       <Navigation />
       
       <div className="container mx-auto px-4 pt-32 pb-20">
         <div className="max-w-6xl mx-auto">
+          {/* Header */}
           <div className="mb-8 flex items-center gap-4">
             <Button
               variant="outline"
@@ -105,184 +107,50 @@ const Results = () => {
               <h1 className="text-4xl font-bold">
                 Resume <span className="gradient-text">Analysis</span>
               </h1>
+              <p className="text-muted-foreground mt-1">
+                Detailed analysis and improvement suggestions for your resume
+              </p>
             </div>
           </div>
 
-          {/* Scores Overview */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card className="glass-card card-3d p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">ATS Score</h3>
-                <TrendingUp className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className={`text-4xl font-bold ${getScoreColor(analysis.ats_score)}`}>
-                  {analysis.ats_score}
-                </span>
-                <span className="text-muted-foreground">/100</span>
-              </div>
-              <Progress value={analysis.ats_score} className="h-2" />
-            </Card>
-
-            <Card className="glass-card card-3d p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Keyword Match</h3>
-                <TrendingUp className="h-5 w-5 text-secondary" />
-              </div>
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className={`text-4xl font-bold ${getScoreColor(analysis.keyword_score)}`}>
-                  {analysis.keyword_score}
-                </span>
-                <span className="text-muted-foreground">/100</span>
-              </div>
-              <Progress value={analysis.keyword_score} className="h-2" />
-            </Card>
-
-            <Card className="glass-card card-3d p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Role Relevancy</h3>
-                <TrendingUp className="h-5 w-5 text-accent" />
-              </div>
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className={`text-4xl font-bold ${getScoreColor(analysis.role_relevancy_score)}`}>
-                  {analysis.role_relevancy_score}
-                </span>
-                <span className="text-muted-foreground">/100</span>
-              </div>
-              <Progress value={analysis.role_relevancy_score} className="h-2" />
-            </Card>
+          {/* Scores Section */}
+          <div className="mb-8">
+            <ScoreCards
+              atsScore={analysis.ats_score || 0}
+              keywordScore={analysis.keyword_score || 0}
+              roleRelevancyScore={analysis.role_relevancy_score || 0}
+            />
           </div>
 
-          {/* Category */}
-          <Card className="glass-card p-6 mb-8">
-            <h3 className="text-xl font-semibold mb-4">Resume Category</h3>
-            <Badge className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-secondary">
-              {analysis.category}
-            </Badge>
-          </Card>
-
-          {/* Skills Grid */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <Card className="glass-card card-3d p-6">
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                Strong Skills
-              </h3>
-              {analysis.strong_skills.length > 0 ? (
-                <ul className="space-y-2">
-                  {analysis.strong_skills.map((skill, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-green-500 mt-1">•</span>
-                      <span className="text-sm">{skill}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">No strong skills identified</p>
-              )}
-            </Card>
-
-            <Card className="glass-card card-3d p-6">
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-red-500" />
-                Missing Skills
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {analysis.missing_skills.map((skill, idx) => (
-                  <Badge key={idx} variant="outline" className="bg-red-500/10 border-red-500/30">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            </Card>
+          {/* Category Match */}
+          <div className="mb-8">
+            <CategoryMatch
+              category={analysis.category || "Not Specified"}
+              roleRelevancyScore={analysis.role_relevancy_score || 0}
+            />
           </div>
 
-          {/* Detailed Skills */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card className="glass-card p-6">
-              <h3 className="text-lg font-semibold mb-4">Technical Skills</h3>
-              <div className="space-y-2">
-                {analysis.technical_skills.map((skill, idx) => (
-                  <div key={idx} className="text-sm text-muted-foreground">
-                    • {skill}
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="glass-card p-6">
-              <h3 className="text-lg font-semibold mb-4">Soft Skills</h3>
-              <div className="space-y-2">
-                {analysis.soft_skills.map((skill, idx) => (
-                  <div key={idx} className="text-sm text-muted-foreground">
-                    • {skill}
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="glass-card p-6">
-              <h3 className="text-lg font-semibold mb-4">Tools & Technologies</h3>
-              <div className="space-y-2">
-                {analysis.tools_technologies.map((tool, idx) => (
-                  <div key={idx} className="text-sm text-muted-foreground">
-                    • {tool}
-                  </div>
-                ))}
-              </div>
-            </Card>
+          {/* Skills Section */}
+          <div className="mb-8">
+            <SkillsSection
+              technicalSkills={analysis.technical_skills}
+              softSkills={analysis.soft_skills}
+              toolsTechnologies={analysis.tools_technologies}
+              certifications={analysis.certifications}
+              strongSkills={analysis.strong_skills}
+              missingSkills={analysis.missing_skills}
+            />
           </div>
 
-          {/* Improvement Areas */}
-          {analysis.improvement_areas.length > 0 && (
-            <Card className="glass-card card-3d p-6 mb-8">
-              <h3 className="text-xl font-semibold mb-4">Areas for Improvement</h3>
-              <div className="space-y-3">
-                {analysis.improvement_areas.map((area, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="h-6 w-6 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs font-bold">{idx + 1}</span>
-                    </div>
-                    <p className="text-muted-foreground">{area}</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Certifications */}
-          {analysis.certifications.length > 0 && (
-            <Card className="glass-card p-6 mb-8">
-              <h3 className="text-xl font-semibold mb-4">Certifications</h3>
-              <div className="flex flex-wrap gap-2">
-                {analysis.certifications.map((cert, idx) => (
-                  <Badge key={idx} variant="secondary" className="text-sm px-3 py-1">
-                    {cert}
-                  </Badge>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Recommendations */}
-          {analysis.analysis_data?.recommendations && analysis.analysis_data.recommendations.length > 0 && (
-            <Card className="glass-card card-3d p-6">
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                Recommendations
-              </h3>
-              <div className="space-y-3">
-                {analysis.analysis_data.recommendations.map((rec, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-primary">{idx + 1}</span>
-                    </div>
-                    <p className="text-muted-foreground">{rec}</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
+          {/* Improvement Suggestions */}
+          <div className="mb-8">
+            <ImprovementSuggestions
+              improvementAreas={analysis.improvement_areas}
+              recommendations={analysis.analysis_data?.recommendations || []}
+              atsScore={analysis.ats_score || 0}
+              missingSkills={analysis.missing_skills}
+            />
+          </div>
         </div>
       </div>
     </div>
