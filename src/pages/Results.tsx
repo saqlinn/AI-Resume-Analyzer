@@ -25,7 +25,17 @@ interface AnalysisData {
   strong_skills: string[];
   analysis_data?: {
     recommendations?: string[];
-    rawResponse?: any;
+    rawResponse?: {
+      explanations?: {
+        why_missing?: string;
+        top_keywords?: string[];
+      };
+      best_job?: {
+        job_title?: string;
+        match_score?: number;
+        required_skills?: string[];
+      };
+    };
   };
 }
 
@@ -69,7 +79,7 @@ const Results = () => {
         missing_skills: data.missing_skills || [],
         improvement_areas: data.improvement_areas || [],
         strong_skills: data.strong_skills || [],
-        analysis_data: data.analysis_data as { recommendations?: string[]; rawResponse?: any } | undefined
+        analysis_data: data.analysis_data as AnalysisData['analysis_data']
       });
       setLoading(false);
     };
@@ -86,6 +96,11 @@ const Results = () => {
   }
 
   if (!analysis) return null;
+
+  // Extract additional data from raw response
+  const rawResponse = analysis.analysis_data?.rawResponse;
+  const explanations = rawResponse?.explanations;
+  const bestJob = rawResponse?.best_job;
 
   return (
     <div className="min-h-screen">
@@ -139,6 +154,8 @@ const Results = () => {
               certifications={analysis.certifications}
               strongSkills={analysis.strong_skills}
               missingSkills={analysis.missing_skills}
+              topKeywords={explanations?.top_keywords || []}
+              requiredSkillsForRole={bestJob?.required_skills || []}
             />
           </div>
 
@@ -149,6 +166,7 @@ const Results = () => {
               recommendations={analysis.analysis_data?.recommendations || []}
               atsScore={analysis.ats_score || 0}
               missingSkills={analysis.missing_skills}
+              whyMissing={explanations?.why_missing}
             />
           </div>
         </div>
