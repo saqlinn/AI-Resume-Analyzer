@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,11 +45,25 @@ serve(async (req) => {
     const backendFormData = new FormData();
     backendFormData.append('file', fileBlob, fileName);
 
-    // Call your backend API
-    const backendResponse = await fetch(BACKEND_API_URL, {
-      method: 'POST',
-      body: backendFormData,
-    });
+    // Call your backend API with extended timeout (5 minutes for slow backends)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000);
+    
+    let backendResponse: Response;
+    try {
+      backendResponse = await fetch(BACKEND_API_URL, {
+        method: 'POST',
+        body: backendFormData,
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new Error("Backend timeout: Analysis took too long (>5 minutes)");
+      }
+      throw new Error(`Failed to connect to backend: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
+    }
+    clearTimeout(timeoutId);
 
     if (!backendResponse.ok) {
       const errorText = await backendResponse.text();
@@ -82,7 +95,6 @@ serve(async (req) => {
     
     // Add job-specific recommendations
     if (bestJob.required_skills && bestJob.required_skills.length > 0) {
-      const matchingSkills = bestJob.required_skills.filter((s: string) => presentSkills.includes(s));
       const missingFromRole = bestJob.required_skills.filter((s: string) => !presentSkills.includes(s));
       
       if (missingFromRole.length > 0) {
@@ -117,14 +129,13 @@ serve(async (req) => {
       keyword_score: backendData.match_score || 0,
       role_relevancy_score: backendData.match_score || 0,
       technical_skills: presentSkills,
-      soft_skills: [], // Backend doesn't provide this
-      tools_technologies: [], // Backend doesn't provide this
-      certifications: [], // Backend doesn't provide this
+      soft_skills: [],
+      tools_technologies: [],
+      certifications: [],
       missing_skills: missingSkills,
       improvement_areas: improvementAreas,
       strong_skills: presentSkills,
       recommendations: recommendations,
-      // Additional data for detailed display
       best_job: bestJob,
       explanations: explanations,
       top_keywords: explanations.top_keywords || presentSkills,
@@ -135,7 +146,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         analysis,
-        rawResponse: backendData // Include raw response for debugging
+        rawResponse: backendData
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
