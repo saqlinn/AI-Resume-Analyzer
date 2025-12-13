@@ -140,18 +140,33 @@ const Upload = () => {
         throw new Error(analysisData?.error || "Analysis failed");
       }
 
-      // Store recommendations in analysis_data jsonb field since it doesn't have a dedicated column
-      const { recommendations, ...analysisFields } = analysisData.analysis;
+      // Extract only the fields that exist in the database table
+      const analysis = analysisData.analysis;
       
-      await supabase.from('resume_analyses').insert({
+      const { error: insertError } = await supabase.from('resume_analyses').insert({
         resume_id: resumeData.id,
         user_id: user.id,
-        ...analysisFields,
+        category: analysis.category,
+        ats_score: analysis.ats_score,
+        keyword_score: analysis.keyword_score,
+        role_relevancy_score: analysis.role_relevancy_score,
+        technical_skills: analysis.technical_skills,
+        soft_skills: analysis.soft_skills,
+        tools_technologies: analysis.tools_technologies,
+        certifications: analysis.certifications,
+        missing_skills: analysis.missing_skills,
+        improvement_areas: analysis.improvement_areas,
+        strong_skills: analysis.strong_skills,
         analysis_data: { 
-          recommendations,
+          recommendations: analysis.recommendations,
           rawResponse: analysisData.rawResponse 
         }
       });
+
+      if (insertError) {
+        console.error("Failed to save analysis:", insertError);
+        throw new Error("Failed to save analysis results");
+      }
 
       toast.success("Analysis complete!");
       navigate(`/results/${resumeData.id}`);
