@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Upload as UploadIcon, FileText, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { isBackendAvailable, analyzeWithBackend } from "@/utils/backend";
 import { User } from "@supabase/supabase-js";
 
 const Upload = () => {
@@ -78,98 +79,80 @@ const Upload = () => {
     setIsAnalyzing(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('resumes')
-        .upload(fileName, file);
+      // If backend is available, use it; otherwise fall back to demo analysis
+      const backendUp = await isBackendAvailable();
 
-      if (uploadError) throw new Error("Failed to upload file");
+      if (backendUp) {
+        toast.loading('Analyzing with backend...');
+        // send file blob to backend
+        const response = await analyzeWithBackend(file, file.name);
+        // Expect backend response shape; adapt as needed
+        const analysis = response.analysis || response;
 
-      const { data: resumeData, error: resumeError } = await supabase
-        .from('resumes')
-        .insert({
-          user_id: user.id,
-          file_name: file.name,
-          file_size: file.size,
-          file_type: file.type,
-          storage_path: fileName
-        })
-        .select()
-        .single();
+        const resultId = analysis.id || `backend-${Date.now()}`;
+        const stored = {
+          id: resultId,
+          category: analysis.category || analysis.job_title || 'Analysis',
+          ats_score: analysis.ats_score ?? analysis.score ?? 0,
+          keyword_score: analysis.keyword_score ?? 0,
+          role_relevancy_score: analysis.role_relevancy_score ?? 0,
+          technical_skills: analysis.technical_skills || analysis.skills?.present || [],
+          soft_skills: analysis.soft_skills || [],
+          tools_technologies: analysis.tools_technologies || [],
+          certifications: analysis.certifications || [],
+          missing_skills: analysis.missing_skills || [],
+          improvement_areas: analysis.improvement_areas || analysis.recommendations || [],
+          strong_skills: analysis.strong_skills || [],
+          recommendations: analysis.recommendations || [],
+        };
 
-      if (resumeError) throw new Error("Failed to save resume");
+        sessionStorage.setItem(`demo-result-${stored.id}`, JSON.stringify({ ...stored, fileName: file.name, user_email: user.email }));
+        toast.success('Analysis complete (backend)');
+        navigate(`/results/${stored.id}`);
+      } else {
+        // Demo deterministic analysis when backend is not reachable
+        const fileHash = file.name.length + file.size;
+        const seededRandom = (seed: number) => {
+          const x = Math.sin(seed) * 10000;
+          return x - Math.floor(x);
+        };
 
-      // Convert file to base64 for edge function
-      const fileBuffer = await file.arrayBuffer();
-      const base64File = btoa(
-        new Uint8Array(fileBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-      const fileData = `data:${file.type};base64,${base64File}`;
+        const baseScore = Math.round(seededRandom(fileHash) * 40 + 60); // 60-100 range
+        
+        const mockAnalysis = {
+          id: `demo-${Date.now()}`,
+          category: "Software Engineer",
+          ats_score: baseScore,
+          keyword_score: Math.round(seededRandom(fileHash + 1) * 40 + 60),
+          role_relevancy_score: Math.round(seededRandom(fileHash + 2) * 40 + 60),
+          technical_skills: ["JavaScript", "React", "TypeScript", "Node.js"],
+          soft_skills: ["Communication", "Leadership", "Problem Solving"],
+          tools_technologies: ["Git", "Docker", "AWS"],
+          certifications: ["AWS Certified", "React Certified"],
+          missing_skills: ["Kubernetes", "GraphQL"],
+          improvement_areas: ["Add more project details", "Include metrics"],
+          strong_skills: ["Full Stack Development", "React Expertise"],
+          recommendations: [
+            "Add quantifiable metrics to your achievements",
+            "Include more technical keywords from the job description",
+            "Highlight your leadership experience"
+          ]
+        };
 
-      // Use fetch with longer timeout (5 minutes) for slow backend
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-resume`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ fileData, fileName: file.name }),
-        signal: controller.signal,
-      });
+        toast.success("Analysis complete (demo)!");
+        
+        // Store demo result in session storage for the results page
+        sessionStorage.setItem(`demo-result-${mockAnalysis.id}`, JSON.stringify({
+          ...mockAnalysis,
+          fileName: file.name,
+          user_email: user.email
+        }));
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Analysis response error:', errorText);
-        throw new Error("Analysis request failed");
+        navigate(`/results/${mockAnalysis.id}`);
       }
-
-      const analysisData = await response.json();
-
-      if (!analysisData.success) {
-        console.error('Analysis error:', analysisData);
-        throw new Error(analysisData?.error || "Analysis failed");
-      }
-
-      // Extract only the fields that exist in the database table
-      const analysis = analysisData.analysis;
-      
-      const { error: insertError } = await supabase.from('resume_analyses').insert({
-        resume_id: resumeData.id,
-        user_id: user.id,
-        category: analysis.category,
-        ats_score: analysis.ats_score,
-        keyword_score: analysis.keyword_score,
-        role_relevancy_score: analysis.role_relevancy_score,
-        technical_skills: analysis.technical_skills,
-        soft_skills: analysis.soft_skills,
-        tools_technologies: analysis.tools_technologies,
-        certifications: analysis.certifications,
-        missing_skills: analysis.missing_skills,
-        improvement_areas: analysis.improvement_areas,
-        strong_skills: analysis.strong_skills,
-        analysis_data: { 
-          recommendations: analysis.recommendations,
-          rawResponse: analysisData.rawResponse 
-        }
-      });
-
-      if (insertError) {
-        console.error("Failed to save analysis:", insertError);
-        throw new Error("Failed to save analysis results");
-      }
-
-      toast.success("Analysis complete!");
-      navigate(`/results/${resumeData.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to analyze");
     } finally {
