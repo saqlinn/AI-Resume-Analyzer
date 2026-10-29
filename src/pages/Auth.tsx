@@ -55,7 +55,7 @@ const Auth = () => {
           if (error.message.includes("Invalid login credentials")) {
             toast.error("Invalid email or password");
           } else {
-            toast.error(error.message);
+            toast.error(error.message || "Failed to sign in. Please check your connection and try again.");
           }
           return;
         }
@@ -75,7 +75,7 @@ const Auth = () => {
           if (error.message.includes("already registered")) {
             toast.error("This email is already registered. Please login instead.");
           } else {
-            toast.error(error.message);
+            toast.error(error.message || "Failed to create account. Please check your connection and try again.");
           }
           return;
         }
@@ -84,7 +84,8 @@ const Auth = () => {
         setIsLogin(true);
       }
     } catch (error) {
-      toast.error("An unexpected error occurred");
+      console.error('Unexpected error:', error);
+      toast.error("An unexpected error occurred. Please check your internet connection.");
     } finally {
       setLoading(false);
     }
