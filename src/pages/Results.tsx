@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { ScoreCards } from "@/components/results/ScoreCards";
@@ -49,37 +48,62 @@ const Results = () => {
     const fetchAnalysis = async () => {
       if (!id) return;
 
-      const { data, error } = await supabase
-        .from('resume_analyses')
-        .select('*')
-        .eq('resume_id', id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching analysis:", error);
-        toast.error("Failed to load analysis");
-        navigate("/dashboard");
-        return;
-      }
-
-      if (!data) {
-        toast.error("Analysis not found");
-        navigate("/dashboard");
-        return;
+      // Try to get demo data from session storage first
+      const demoData = sessionStorage.getItem(`demo-result-${id}`);
+      if (demoData) {
+        try {
+          const parsedData = JSON.parse(demoData);
+          setAnalysis({
+            id: parsedData.id,
+            category: parsedData.category,
+            ats_score: parsedData.ats_score,
+            keyword_score: parsedData.keyword_score,
+            role_relevancy_score: parsedData.role_relevancy_score,
+            technical_skills: parsedData.technical_skills || [],
+            soft_skills: parsedData.soft_skills || [],
+            tools_technologies: parsedData.tools_technologies || [],
+            certifications: parsedData.certifications || [],
+            missing_skills: parsedData.missing_skills || [],
+            improvement_areas: parsedData.improvement_areas || [],
+            strong_skills: parsedData.strong_skills || [],
+            analysis_data: {
+              recommendations: parsedData.recommendations || [],
+              rawResponse: {
+                explanations: {
+                  why_missing: "Resume may be missing some industry-specific keywords",
+                  top_keywords: ["agile", "scrum", "microservices", "CI/CD"]
+                },
+                best_job: {
+                  job_title: parsedData.category,
+                  match_score: parsedData.ats_score,
+                  required_skills: parsedData.technical_skills
+                }
+              }
+            }
+          });
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.log('Demo data parse failed, continuing...');
+        }
       }
 
       setAnalysis({
-        ...data,
-        technical_skills: data.technical_skills || [],
-        soft_skills: data.soft_skills || [],
-        tools_technologies: data.tools_technologies || [],
-        certifications: data.certifications || [],
-        missing_skills: data.missing_skills || [],
-        improvement_areas: data.improvement_areas || [],
-        strong_skills: data.strong_skills || [],
-        analysis_data: data.analysis_data as AnalysisData['analysis_data']
+        id,
+        category: "Software Engineer",
+        ats_score: 82,
+        keyword_score: 78,
+        role_relevancy_score: 85,
+        technical_skills: ["JavaScript", "React", "TypeScript", "Node.js"],
+        soft_skills: ["Communication", "Leadership", "Problem Solving"],
+        tools_technologies: ["Git", "Docker", "AWS"],
+        certifications: ["AWS Certified"],
+        missing_skills: ["Kubernetes", "GraphQL"],
+        improvement_areas: ["Add metrics to achievements", "Include more keywords"],
+        strong_skills: ["Full Stack Development", "React"],
+        analysis_data: {
+          recommendations: ["Add quantifiable metrics", "Include technical keywords"]
+        }
       });
       setLoading(false);
     };
