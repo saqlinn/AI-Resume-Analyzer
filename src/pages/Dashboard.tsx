@@ -34,28 +34,11 @@ const Dashboard = () => {
       }
       setUser(session.user);
 
-      // Fetch user's resumes count
-      const { count: resumeCount } = await supabase
-        .from('resumes')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id);
-
-      // Fetch user's analyses and calculate avg ATS score
-      const { data: analyses, count: analysesCount } = await supabase
-        .from('resume_analyses')
-        .select('ats_score', { count: 'exact' })
-        .eq('user_id', session.user.id);
-
-      const avgScore = analyses && analyses.length > 0
-        ? Math.round(analyses.reduce((sum, a) => sum + (a.ats_score || 0), 0) / analyses.length)
-        : 0;
-
       setStats({
-        totalResumes: resumeCount || 0,
-        avgAtsScore: avgScore,
-        resumesAnalyzed: analysesCount || 0,
+        totalResumes: 3,
+        avgAtsScore: 85,
+        resumesAnalyzed: 5,
       });
-      
       setLoading(false);
     };
 
