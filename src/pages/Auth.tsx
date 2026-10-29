@@ -113,6 +113,18 @@ const Auth = () => {
                 : "Get started with your free account"}
             </p>
 
+            {isLogin && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-sm">
+                <p className="text-blue-900 font-semibold mb-2">Demo credentials</p>
+                <p className="text-blue-800">
+                  Email: <code className="bg-blue-100 px-2 py-1 rounded">demo@example.com</code>
+                </p>
+                <p className="text-blue-800">
+                  Password: <code className="bg-blue-100 px-2 py-1 rounded">demo123</code>
+                </p>
+              </div>
+            )}
+
             <form onSubmit={handleAuth} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
