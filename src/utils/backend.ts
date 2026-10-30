@@ -28,7 +28,12 @@ export async function analyzeWithBackend(file: Blob, filename: string, timeoutMs
       const text = await res.text();
       throw new Error(`Backend error ${res.status}: ${text}`);
     }
-    return await res.json();
+    const body = await res.text();
+    try {
+      return JSON.parse(body) as unknown;
+    } catch {
+      throw new Error("Backend returned invalid JSON.");
+    }
   } catch (err) {
     clearTimeout(id);
     throw err;

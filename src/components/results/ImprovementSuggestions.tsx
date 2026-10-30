@@ -1,12 +1,15 @@
 import { Card } from "@/components/ui/card";
-import { Lightbulb, FileText, Briefcase, Layout, Target, ListChecks, AlertCircle } from "lucide-react";
+import { Lightbulb, FileText, Briefcase, Target, ListChecks, AlertCircle, AlertTriangle } from "lucide-react";
+import { Recommendation } from "@/utils/analysis";
 
 interface ImprovementSuggestionsProps {
   improvementAreas: string[];
-  recommendations: string[];
+  recommendations: Recommendation[];
   atsScore: number;
   missingSkills: string[];
   whyMissing?: string;
+  issues?: string[];
+  warnings?: string[];
 }
 
 export const ImprovementSuggestions = ({
@@ -15,6 +18,8 @@ export const ImprovementSuggestions = ({
   atsScore,
   missingSkills,
   whyMissing,
+  issues = [],
+  warnings = [],
 }: ImprovementSuggestionsProps) => {
   // Get ATS status message
   const getAtsStatus = () => {
@@ -85,6 +90,23 @@ export const ImprovementSuggestions = ({
         </Card>
       )}
 
+      {(issues.length > 0 || warnings.length > 0) && (
+        <Card className="glass-card card-3d p-6">
+          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            Analysis Notes
+          </h3>
+          <div className="space-y-3">
+            {[...issues, ...warnings].map((note, idx) => (
+              <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <AlertCircle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-muted-foreground">{note}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Missing Keywords to Add */}
       {missingSkills.length > 0 && (
         <Card className="glass-card card-3d p-6">
@@ -119,7 +141,19 @@ export const ImprovementSuggestions = ({
                 <div className="h-6 w-6 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
                   <span className="text-xs font-bold text-secondary">{idx + 1}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">{rec}</p>
+                {rec.text ? (
+                  <p className="text-sm text-muted-foreground">{rec.text}</p>
+                ) : (
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    {rec.issue && <p><strong className="text-foreground">Issue:</strong> {rec.issue}</p>}
+                    {rec.evidence && <p><strong className="text-foreground">Evidence:</strong> {rec.evidence}</p>}
+                    {rec.why && <p><strong className="text-foreground">Why it matters:</strong> {rec.why}</p>}
+                    {rec.suggestion && <p><strong className="text-foreground">Recommended action:</strong> {rec.suggestion}</p>}
+                    {rec.priority && <p><strong className="text-foreground">Priority:</strong> {rec.priority}</p>}
+                    {rec.expected_benefit && <p><strong className="text-foreground">Expected benefit:</strong> {rec.expected_benefit}</p>}
+                    {rec.example && <p><strong className="text-foreground">Example:</strong> {rec.example}</p>}
+                  </div>
+                )}
               </div>
             ))}
           </div>

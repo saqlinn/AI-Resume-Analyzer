@@ -14,6 +14,7 @@ const Upload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -77,6 +78,7 @@ const Upload = () => {
     }
 
     setIsAnalyzing(true);
+    setAnalysisError(null);
 
     try {
       // If backend is available, use it; otherwise fall back to demo analysis
@@ -91,25 +93,19 @@ const Upload = () => {
 
         const resultId = analysis.id || `backend-${Date.now()}`;
         const stored = {
+          ...response,
+          ...analysis,
           id: resultId,
-          category: analysis.category || analysis.job_title || 'Analysis',
-          ats_score: analysis.ats_score ?? analysis.score ?? 0,
-          keyword_score: analysis.keyword_score ?? 0,
-          role_relevancy_score: analysis.role_relevancy_score ?? 0,
-          technical_skills: analysis.technical_skills || analysis.skills?.present || [],
-          soft_skills: analysis.soft_skills || [],
-          tools_technologies: analysis.tools_technologies || [],
-          certifications: analysis.certifications || [],
-          missing_skills: analysis.missing_skills || [],
-          improvement_areas: analysis.improvement_areas || analysis.recommendations || [],
-          strong_skills: analysis.strong_skills || [],
-          recommendations: analysis.recommendations || [],
         };
 
         sessionStorage.setItem(`demo-result-${stored.id}`, JSON.stringify({ ...stored, fileName: file.name, user_email: user.email }));
         toast.success('Analysis complete (backend)');
         navigate(`/results/${stored.id}`);
       } else {
+        if (!import.meta.env.DEV) {
+          throw new Error("The resume analysis service is unavailable. Please try again shortly.");
+        }
+
         // Demo deterministic analysis when backend is not reachable
         const fileHash = file.name.length + file.size;
         const seededRandom = (seed: number) => {
@@ -154,7 +150,9 @@ const Upload = () => {
         navigate(`/results/${mockAnalysis.id}`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to analyze");
+      const message = error instanceof Error ? error.message : "Failed to analyze";
+      setAnalysisError(message);
+      toast.error(message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -220,6 +218,14 @@ const Upload = () => {
                   {isAnalyzing ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Analyzing...</> : "Analyze Resume"}
                 </Button>
                 <Button variant="outline" onClick={() => navigate("/dashboard")} className="glass-card" disabled={isAnalyzing}>Cancel</Button>
+              </div>
+            )}
+            {analysisError && (
+              <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive" role="alert">
+                <p>{analysisError}</p>
+                <Button variant="outline" onClick={handleAnalyze} disabled={isAnalyzing} className="mt-3">
+                  Try Again
+                </Button>
               </div>
             )}
           </Card>

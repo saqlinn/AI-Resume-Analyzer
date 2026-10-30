@@ -104,7 +104,10 @@ serve(async (req) => {
     
     // Build recommendations based on ATS score
     const recommendations: string[] = [];
-    const atsScore = backendData.ats_score || 0;
+    const scoreBreakdown = backendData.score_breakdown || {};
+    const atsScore = backendData.ats_score ?? scoreBreakdown.ats_score ?? scoreBreakdown.ats ?? 0;
+    const keywordScore = backendData.keyword_score ?? scoreBreakdown.keyword_score ?? scoreBreakdown.keyword_match ?? backendData.match_score ?? 0;
+    const roleRelevancyScore = backendData.role_relevancy_score ?? scoreBreakdown.role_relevancy_score ?? scoreBreakdown.role_relevance ?? scoreBreakdown.relevance ?? backendData.match_score ?? 0;
     
     if (atsScore < 50) {
       recommendations.push("Your resume needs significant improvements to pass ATS systems");
@@ -124,18 +127,26 @@ serve(async (req) => {
     
     // Map backend response to our expected format
     const analysis = {
-      category: backendData.category || "Not specified",
+      category: backendData.category || backendData.primary_role || "Not specified",
+      primary_role: backendData.primary_role || backendData.category || null,
+      stated_job_title: backendData.stated_job_title || null,
+      secondary_roles: backendData.secondary_roles || [],
       ats_score: atsScore,
-      keyword_score: backendData.match_score || 0,
-      role_relevancy_score: backendData.match_score || 0,
+      keyword_score: keywordScore,
+      role_relevancy_score: roleRelevancyScore,
       technical_skills: presentSkills,
       soft_skills: [],
       tools_technologies: [],
       certifications: [],
       missing_skills: missingSkills,
       improvement_areas: improvementAreas,
-      strong_skills: presentSkills,
-      recommendations: recommendations,
+      strong_skills: backendData.strong_skills || [],
+      strong_skill_evidence: backendData.strong_skill_evidence || [],
+      recommendations: backendData.recommendations || recommendations,
+      classification: backendData.classification || {},
+      score_breakdown: backendData.score_breakdown || {},
+      extraction_warnings: backendData.extraction_warnings || [],
+      limitations: backendData.limitations || [],
       best_job: bestJob,
       explanations: explanations,
       top_keywords: explanations.top_keywords || presentSkills,

@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Code, Users, Wrench, Award, CheckCircle, AlertCircle, Star, Zap, AlertTriangle, XCircle } from "lucide-react";
+import { StrongSkillEvidence } from "@/utils/analysis";
 
 interface SkillsSectionProps {
   technicalSkills: string[];
@@ -8,6 +9,7 @@ interface SkillsSectionProps {
   toolsTechnologies: string[];
   certifications: string[];
   strongSkills: string[];
+  strongSkillEvidence?: StrongSkillEvidence[];
   missingSkills: string[];
   topKeywords?: string[];
   requiredSkillsForRole?: string[];
@@ -19,6 +21,7 @@ export const SkillsSection = ({
   toolsTechnologies,
   certifications,
   strongSkills,
+  strongSkillEvidence = [],
   missingSkills,
   topKeywords = [],
   requiredSkillsForRole = [],
@@ -111,9 +114,16 @@ export const SkillsSection = ({
           {strongSkills.length > 0 ? (
             <ul className="space-y-2">
               {strongSkills.map((skill, idx) => (
-                <li key={idx} className="flex items-center gap-2 text-sm">
-                  <Star className="h-4 w-4 text-yellow-500" />
-                  <span className="font-medium">{skill}</span>
+                <li key={idx} className="flex items-start gap-2 text-sm">
+                  <Star className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <span className="font-medium">{skill}</span>
+                    {strongSkillEvidence.find((item) => item.skill.toLowerCase() === skill.toLowerCase())?.evidence && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {strongSkillEvidence.find((item) => item.skill.toLowerCase() === skill.toLowerCase())?.evidence}
+                      </p>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

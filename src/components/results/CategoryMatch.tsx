@@ -2,13 +2,16 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Briefcase } from "lucide-react";
+import { SecondaryRole } from "@/utils/analysis";
 
 interface CategoryMatchProps {
   category: string;
   roleRelevancyScore: number;
+  classificationConfidence?: number;
+  secondaryRoles?: SecondaryRole[];
 }
 
-export const CategoryMatch = ({ category, roleRelevancyScore }: CategoryMatchProps) => {
+export const CategoryMatch = ({ category, roleRelevancyScore, classificationConfidence, secondaryRoles = [] }: CategoryMatchProps) => {
   // Parse category to show potential matches
   const getMatchPercentages = () => {
     // Primary match
@@ -17,15 +20,7 @@ export const CategoryMatch = ({ category, roleRelevancyScore }: CategoryMatchPro
       percentage: roleRelevancyScore || 0
     };
     
-    // If score is less than 100, show potential other matches
-    const otherMatches = [];
-    if (roleRelevancyScore < 100 && roleRelevancyScore > 0) {
-      const remaining = 100 - roleRelevancyScore;
-      otherMatches.push({
-        role: "Other Related Roles",
-        percentage: remaining
-      });
-    }
+    const otherMatches = [...secondaryRoles];
 
     return { primaryMatch, otherMatches };
   };
@@ -52,6 +47,11 @@ export const CategoryMatch = ({ category, roleRelevancyScore }: CategoryMatchPro
           <p className="text-sm text-muted-foreground mt-2">
             Your resume is {primaryMatch.percentage}% aligned with {primaryMatch.role} positions
           </p>
+          {classificationConfidence !== undefined && classificationConfidence > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Classification confidence: {classificationConfidence}%
+            </p>
+          )}
         </div>
 
         {/* Other potential matches */}
@@ -61,8 +61,12 @@ export const CategoryMatch = ({ category, roleRelevancyScore }: CategoryMatchPro
             {otherMatches.map((match, idx) => (
               <div key={idx} className="flex items-center gap-4 p-2 rounded bg-muted/30">
                 <span className="text-sm text-muted-foreground flex-1">{match.role}</span>
-                <span className="text-sm font-medium">{match.percentage}%</span>
-                <Progress value={match.percentage} className="w-24 h-2" />
+                {match.percentage !== undefined && (
+                  <>
+                    <span className="text-sm font-medium">{match.percentage}%</span>
+                    <Progress value={match.percentage} className="w-24 h-2" />
+                  </>
+                )}
               </div>
             ))}
           </div>

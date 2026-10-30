@@ -8,40 +8,13 @@ import { ScoreCards } from "@/components/results/ScoreCards";
 import { SkillsSection } from "@/components/results/SkillsSection";
 import { ImprovementSuggestions } from "@/components/results/ImprovementSuggestions";
 import { CategoryMatch } from "@/components/results/CategoryMatch";
-
-interface AnalysisData {
-  id: string;
-  category: string;
-  ats_score: number;
-  keyword_score: number;
-  role_relevancy_score: number;
-  technical_skills: string[];
-  soft_skills: string[];
-  tools_technologies: string[];
-  certifications: string[];
-  missing_skills: string[];
-  improvement_areas: string[];
-  strong_skills: string[];
-  analysis_data?: {
-    recommendations?: string[];
-    rawResponse?: {
-      explanations?: {
-        why_missing?: string;
-        top_keywords?: string[];
-      };
-      best_job?: {
-        job_title?: string;
-        match_score?: number;
-        required_skills?: string[];
-      };
-    };
-  };
-}
+import { normalizeAnalysis, NormalizedAnalysis } from "@/utils/analysis";
 
 const Results = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+  const [analysis, setAnalysis] = useState<NormalizedAnalysis | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,58 +26,18 @@ const Results = () => {
       if (demoData) {
         try {
           const parsedData = JSON.parse(demoData);
-          setAnalysis({
-            id: parsedData.id,
-            category: parsedData.category,
-            ats_score: parsedData.ats_score,
-            keyword_score: parsedData.keyword_score,
-            role_relevancy_score: parsedData.role_relevancy_score,
-            technical_skills: parsedData.technical_skills || [],
-            soft_skills: parsedData.soft_skills || [],
-            tools_technologies: parsedData.tools_technologies || [],
-            certifications: parsedData.certifications || [],
-            missing_skills: parsedData.missing_skills || [],
-            improvement_areas: parsedData.improvement_areas || [],
-            strong_skills: parsedData.strong_skills || [],
-            analysis_data: {
-              recommendations: parsedData.recommendations || [],
-              rawResponse: {
-                explanations: {
-                  why_missing: "Resume may be missing some industry-specific keywords",
-                  top_keywords: ["agile", "scrum", "microservices", "CI/CD"]
-                },
-                best_job: {
-                  job_title: parsedData.category,
-                  match_score: parsedData.ats_score,
-                  required_skills: parsedData.technical_skills
-                }
-              }
-            }
-          });
+          const normalized = normalizeAnalysis(parsedData, id);
+          if (!normalized) throw new Error("The saved analysis data is invalid.");
+          setAnalysis(normalized);
           setLoading(false);
           return;
         } catch (e) {
-          console.log('Demo data parse failed, continuing...');
+          setError(e instanceof Error ? e.message : "The saved analysis data is invalid.");
+          setLoading(false);
+          return;
         }
       }
-
-      setAnalysis({
-        id,
-        category: "Software Engineer",
-        ats_score: 82,
-        keyword_score: 78,
-        role_relevancy_score: 85,
-        technical_skills: ["JavaScript", "React", "TypeScript", "Node.js"],
-        soft_skills: ["Communication", "Leadership", "Problem Solving"],
-        tools_technologies: ["Git", "Docker", "AWS"],
-        certifications: ["AWS Certified"],
-        missing_skills: ["Kubernetes", "GraphQL"],
-        improvement_areas: ["Add metrics to achievements", "Include more keywords"],
-        strong_skills: ["Full Stack Development", "React"],
-        analysis_data: {
-          recommendations: ["Add quantifiable metrics", "Include technical keywords"]
-        }
-      });
+      setError("No valid analysis data was found for this result.");
       setLoading(false);
     };
 
@@ -119,12 +52,20 @@ const Results = () => {
     );
   }
 
-  if (!analysis) return null;
-
-  // Extract additional data from raw response
-  const rawResponse = analysis.analysis_data?.rawResponse;
-  const explanations = rawResponse?.explanations;
-  const bestJob = rawResponse?.best_job;
+  if (!analysis) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        <div className="container mx-auto px-4 pt-32 pb-20">
+          <div className="max-w-2xl mx-auto text-center glass-card p-8">
+            <h1 className="text-2xl font-bold mb-3">Unable to display this analysis</h1>
+            <p className="text-muted-foreground mb-6">{error || "The analysis response was empty or invalid."}</p>
+            <Button onClick={() => navigate("/upload")}>Upload another resume</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -166,6 +107,8 @@ const Results = () => {
             <CategoryMatch
               category={analysis.category || "Not Specified"}
               roleRelevancyScore={analysis.role_relevancy_score || 0}
+              classificationConfidence={analysis.classification_confidence_pct}
+              secondaryRoles={analysis.secondary_roles}
             />
           </div>
 
@@ -177,9 +120,10 @@ const Results = () => {
               toolsTechnologies={analysis.tools_technologies}
               certifications={analysis.certifications}
               strongSkills={analysis.strong_skills}
+              strongSkillEvidence={analysis.strong_skill_evidence}
               missingSkills={analysis.missing_skills}
-              topKeywords={explanations?.top_keywords || []}
-              requiredSkillsForRole={bestJob?.required_skills || []}
+              topKeywords={analysis.top_keywords}
+              requiredSkillsForRole={analysis.required_skills_for_role}
             />
           </div>
 
@@ -187,10 +131,12 @@ const Results = () => {
           <div className="mb-8">
             <ImprovementSuggestions
               improvementAreas={analysis.improvement_areas}
-              recommendations={analysis.analysis_data?.recommendations || []}
+              recommendations={analysis.recommendations}
               atsScore={analysis.ats_score || 0}
               missingSkills={analysis.missing_skills}
-              whyMissing={explanations?.why_missing}
+              whyMissing={analysis.why_missing}
+              issues={analysis.issues}
+              warnings={analysis.warnings}
             />
           </div>
         </div>
